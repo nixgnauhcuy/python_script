@@ -37,6 +37,7 @@
 
 import sys
 import os
+import getopt
 
 VERSION = '1.0.1'
 
@@ -79,8 +80,6 @@ def is_valid_address(arg):
 
 
 def main(args=None):
-    import getopt
-
     output = "output.bin"
     paddingbyte = 0xff
 

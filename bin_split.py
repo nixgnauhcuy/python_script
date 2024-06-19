@@ -38,6 +38,7 @@
 import sys
 import os
 import getopt
+
 VERSION = '1.0.0'
 
 USAGE = '''Split a bin file into multiple bin files.
@@ -63,7 +64,6 @@ def is_valid_file(filepath):
         return True
 
 def main(args=None):
-    import getopt
 
     split_size = 0xFFFF
     output = "output"
