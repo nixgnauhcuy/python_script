@@ -1,17 +1,21 @@
 # python_script
 
-Save some personal Python scripts for personal use.
+Package some personal Python scripts into an executable file for use.
+
+# Quick Start
+
+Download the latest release from [Releases](https://github.com/nixgnauhcuy/python_script/releases).
 
 # script list
 
-## bin_allinone.py
+## bin_allinone
 
 The script is used to merge multiple bin files into one bin file.
 
 **Usage**
 
 ``` shell
-python bin_allinone.py [options] FILES...
+bin_allinone.exe [options] FILES...
 ```
 
 **Options**
@@ -27,15 +31,50 @@ python bin_allinone.py [options] FILES...
 **Arguments**
 
 ```
-    FILES       list of bin files for merging
+    FILES                   list of bin files for merging
 ```
 
 **Example Usage**
 
 ``` shell
-python bin_allinone.py file1.bin addr1 file2.bin addr2 file3.bin addr3
-python bin_allinone.py file1.bin addr1 file2.bin addr2 file3.bin addr3 -o out.bin
-python bin_allinone.py file1.bin addr1 file2.bin addr2 file3.bin addr3 -p 0xff -o out.bin
+bin_allinone.exe -p 0x00 input1.bin 0x100 input2.bin 0x200 input3.bin 0x300
+bin_allinone.exe -o output.bin input1.bin 0x100 input2.bin 0x200 input3.bin 0x300
+bin_allinone.exe input1.bin 0x100 input2.bin 0x200 input3.bin 0x300 -p 0xff -o output.bin
+```
+
+## bin_split
+
+The script is Split a bin file into multiple bin files.
+
+**Usage**
+
+``` shell
+bin_split.exe [options] FILE...
+```
+
+**Options**
+
+```
+    -h, --help              this help message.
+    -v, --version           version info.
+    -s, --size=SIZE         size of each output file in bytes. [default: 0xFFFF].
+    --symbol=SYMBOL         the symbol between the output filename and the output file sequence number.
+    -o, --output=FILENAME   output file name(if option is not specified, default file name is "output").
+```
+
+**Arguments**
+
+```
+    FILE                    bin file for spliting.
+```
+
+**Example Usage**
+
+``` shell
+bin_split.exe test.bin
+bin_split.exe -s 0x1000 test.bin
+bin_split.exe -s 0x1000 -o output test.bin
+bin_split.exe -s 0x1000 --symbol=_ -o output test.bin
 ```
 
 # Contribution

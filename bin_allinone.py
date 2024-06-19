@@ -35,29 +35,35 @@
 
 """Merge several bin files into one bin file."""
 
-VERSION = '1.0.0'
+import sys
+import os
 
-USAGE = '''bin_allinone: merge content of bin files.
+VERSION = '1.0.1'
+
+USAGE = '''
+Merge several bin files into one bin file.
+
 Usage:
-    python bin_allinone.py [options] FILES...
+    bin_allinone.exe [options] FILES...
 
 Options:
     -h, --help              this help message.
     -v, --version           version info.
     -p, --padding           padding bytes, default 0xff.
     -o, --output=FILENAME   output file name(if option is not 
-                            specified, dafault output.bin)
-
+                            specified, default output.bin).
 
 Arguments:
-    FILES                   list of bin files for merging
+    FILES                   list of bin files for merging.
 
+Example:
+    bin_allinone.exe -p 0x00 input1.bin 0x100 input2.bin 0x200 input3.bin 0x300
+    bin_allinone.exe -o output.bin input1.bin 0x100 input2.bin 0x200 input3.bin 0x300
+    bin_allinone.exe input1.bin 0x100 input2.bin 0x200 input3.bin 0x300 -p 0xff -o output.bin
 '''
-import sys
-import os
 
-def is_valid_file(arg):
-    if not os.path.exists(arg):
+def is_valid_file(filepath):
+    if not os.path.exists(filepath):
         return False
     else:
         return True
@@ -137,9 +143,7 @@ def main(args=None):
             output_data[file_offset : file_offset+len(input_data)] = input_data
 
         output_file.write(output_data)
-
     return 0
-
 
 if __name__ == '__main__':
     sys.exit(main())
