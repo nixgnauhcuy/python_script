@@ -37,7 +37,7 @@
 
 import sys
 import os
-
+import getopt
 VERSION = '1.0.0'
 
 USAGE = '''Split a bin file into multiple bin files.
