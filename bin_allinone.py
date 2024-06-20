@@ -39,7 +39,7 @@ import sys
 import os
 import getopt
 
-VERSION = '1.0.1'
+VERSION = '1.0.2'
 
 USAGE = '''
 Merge several bin files into one bin file.
@@ -63,8 +63,8 @@ Example:
     bin_allinone.exe input1.bin 0x100 input2.bin 0x200 input3.bin 0x300 -p 0xff -o output.bin
 '''
 
-def is_valid_file(filepath):
-    if not os.path.exists(filepath):
+def is_valid_bin_file(filepath):
+    if not os.path.exists(filepath) or not filepath.endswith('.bin'):
         return False
     else:
         return True
@@ -113,13 +113,13 @@ def main(args=None):
     bin_files = {}
     for i in range(0, len(args), 2):
         try:
-            if is_valid_file(args[i]) and is_valid_address(args[i+1]):
+            if is_valid_bin_file(args[i]) and is_valid_address(args[i+1]):
                 bin_file = args[i] 
                 bin_file_addr = args[i + 1][2:] if args[i + 1].startswith("0x") else args[i + 1]
                 bin_files[bin_file] = bin_file_addr
             else:
-                raise getopt.GetoptError('Args Error! Please Check!')
-        except getopt.GetoptError:
+                raise ValueError("Input file is not a valid .bin file.")
+        except Exception as e:
             e = sys.exc_info()[1]     # current exception
             sys.stderr.write(str(e)+"\n\n")
             sys.stderr.write(USAGE+"\n")

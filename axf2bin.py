@@ -33,47 +33,45 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"""Split a bin file into multiple bin files."""
+"""Convert .axf file to .bin file."""
 
 import sys
 import os
 import getopt
 
-VERSION = '1.0.1'
+VERSION = '1.0.0'
 
-USAGE = '''Split a bin file into multiple bin files.
+USAGE = '''Convert .axf file to .bin file.
 
 Usage:
-    bin_split.exe [options] FILE
+    axf2bin.exe [options] FILE
 
 Options:
     -h, --help              this help message.
     -v, --version           version info.
-    -s, --size=SIZE         size of each output file in bytes. [default: 0xFFFF].
-    --symbol=SYMBOL         the symbol between the output filename and the output file sequence number.
-    -o, --output=FILENAME   output file name(if option is not specified, default file name is "output").
+    -o, --output=FILENAME   output file name(if option is not specified, use original name by default).
 
 Arguments:
-    FILE                    bin file for spliting.
+    FILE                    .axf file.
 '''
 
-def is_valid_bin_file(filepath):
-    if not os.path.exists(filepath) or not filepath.endswith('.bin'):
+AXF_HEAD_SIZE = 0x34
+BIN_END_MARK = b'\x01\x21\x00\x2F\x0F\x00\x00\x02\x21\x00\x00\x00\x03\x01\x01\x01'
+
+def is_valid_axf_file(filepath):
+    if not os.path.exists(filepath) or not filepath.endswith('.axf'):
         return False
-    else:
-        return True
+    return True
 
 def main(args=None):
 
-    split_size = 0xFFFF
-    output = "output"
-    symbol = ""
+    output_file = ""
 
     if args is None:
         args = sys.argv[1:]
     try:
-        opts, args = getopt.gnu_getopt(args, 'hvs:o:',
-                                       ['help', 'version', 'size=', 'symbol=', 'output='])
+        opts, args = getopt.gnu_getopt(args, 'hvo:',
+                                       ['help', 'version', 'output='])
 
         for o, a in opts:
             if o in ('-h', '--help'):
@@ -82,12 +80,8 @@ def main(args=None):
             elif o in ('-v', '--version'):
                 print(VERSION)
                 return 0
-            elif o in ('-s', '--size'):
-                split_size = int(a, 16)
-            elif o in ('--symbol'):
-                symbol = a
             elif o in ('-o', '--output'):
-                output = a
+                output_file = a
     except getopt.GetoptError:
         e = sys.exc_info()[1]     # current exception
         sys.stderr.write(str(e)+"\n\n")
@@ -95,22 +89,27 @@ def main(args=None):
         return 1
 
     try:
-        if not is_valid_bin_file(args[0]):
-            raise ValueError("Input file is not a valid .bin file.")
+        axf_file = args[0]
+        if not is_valid_axf_file(axf_file):
+            raise ValueError("Input file is not a valid .axf file.")
 
-        bin_file = args[0]
-        with open(bin_file, 'rb') as input_file:
+        if not output_file:
+            output_file = os.path.splitext(axf_file)[0] + '.bin'
+        
+        if os.path.exists(output_file):
+            os.remove(output_file)
+        
+        with open(axf_file, 'rb') as input_file:
             input_data = input_file.read()
 
-        file_size = len(input_data)
-        num_parts = (file_size + split_size - 1) // split_size
-        for i in range(num_parts):
-            part_data = input_data[i*split_size:(i+1)*split_size]
-            output_filename = f"{output}{symbol}{i+1}.bin"
-            if os.path.exists(output_filename):
-                os.remove(output_filename)
-            with open(output_filename, 'wb') as output_file:
-                output_file.write(part_data)
+        start_index = AXF_HEAD_SIZE
+        end_index = input_data.find(BIN_END_MARK, AXF_HEAD_SIZE)
+        if end_index == -1:
+            raise ValueError("Convert data failed, can't find BIN_END_MARK.")
+        
+        output_data = input_data[start_index:end_index]
+        with open(output_file, 'wb') as output:
+            output.write(output_data)
     except Exception as e:
         e = sys.exc_info()[1]     # current exception
         sys.stderr.write(str(e)+"\n\n")
@@ -118,7 +117,6 @@ def main(args=None):
         return 1
 
     return 0
-
 
 if __name__ == '__main__':
     sys.exit(main())
