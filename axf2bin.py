@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023 nixgnauhcuy
+# Copyright (c) 2024 nixgnauhcuy
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms,
@@ -92,15 +92,6 @@ class Elf32_Struct(object):
             self.p_memsz,
             self.p_align
         ) = struct.unpack('<IIIIIIII', data[self.e_phoff:self.e_phoff+struct.calcsize('<IIIIIIII')])
-
-        print("p_type: ", self.p_type)
-        print("p_flags: ", self.p_flags)
-        print("p_offset: ", self.p_offset)
-        print("p_vaddr: ", self.p_vaddr)
-        print("p_paddr: ", self.p_paddr)
-        print("p_filesz: ", self.p_filesz)
-        print("p_memsz: ", self.p_memsz)
-        print("p_align: ", self.p_align)
     
     def Elf32_Header_Print(self):
         print("ELF Header:")
@@ -193,7 +184,6 @@ def main(args=None):
         sys.stderr.write(str(e)+"\n\n")
         sys.stderr.write(USAGE+"\n")
         return 1
-
     return 0
 
 if __name__ == '__main__':
