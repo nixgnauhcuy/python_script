@@ -38,8 +38,9 @@
 import sys
 import os
 import getopt
+import struct
 
-VERSION = '1.0.0'
+VERSION = '1.0.1'
 
 USAGE = '''Convert .axf file to .bin file.
 
@@ -49,14 +50,85 @@ Usage:
 Options:
     -h, --help              this help message.
     -v, --version           version info.
+        --header            output axf file header information.
+        --program-headers   output program headers information.
     -o, --output=FILENAME   output file name(if option is not specified, use original name by default).
 
 Arguments:
     FILE                    .axf file.
 '''
 
-AXF_HEAD_SIZE = 0x34
-BIN_END_MARK = b'\x01\x21\x00\x2F\x0F\x00\x00\x02\x21\x00\x00\x00\x03\x01\x01\x01'
+EI_NIDENT = 16
+class Elf32_Struct(object):
+
+    # @see https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-43405/index.html
+    def __init__(self, data) -> None:
+        # ELF Header:
+        self.e_ident = data[:EI_NIDENT]
+        (
+            self.e_type,
+            self.e_machine,
+            self.e_version,
+            self.e_entry,
+            self.e_phoff,
+            self.e_shoff,
+            self.e_flags,
+            self.e_ehsize,
+            self.e_phentsize,
+            self.e_phnum,
+            self.e_shentsize,
+            self.e_shnum,
+            self.e_shstrndx
+        ) = struct.unpack('<HHIIIIIHHHHHH', data[EI_NIDENT:EI_NIDENT+struct.calcsize('<HHIIIIIHHHHHH')])
+
+        # ELF Program Headers:
+        (
+            self.p_type,
+            self.p_flags,
+            self.p_offset,
+            self.p_vaddr,
+            self.p_paddr,
+            self.p_filesz,
+            self.p_memsz,
+            self.p_align
+        ) = struct.unpack('<IIIIIIII', data[self.e_phoff:self.e_phoff+struct.calcsize('<IIIIIIII')])
+
+        print("p_type: ", self.p_type)
+        print("p_flags: ", self.p_flags)
+        print("p_offset: ", self.p_offset)
+        print("p_vaddr: ", self.p_vaddr)
+        print("p_paddr: ", self.p_paddr)
+        print("p_filesz: ", self.p_filesz)
+        print("p_memsz: ", self.p_memsz)
+        print("p_align: ", self.p_align)
+    
+    def Elf32_Header_Print(self):
+        print("ELF Header:")
+        print("Magic:                                 ", " ".join(f"{byte:02x}" for byte in self.e_ident))
+        print("Class:                                 ", self.e_type)
+        print("Machine:                               ", self.e_machine)
+        print("Version:                               ", self.e_version)
+        print("Entry point address:                   ", hex(self.e_entry))
+        print("Program header table's file offset:    ", self.e_phoff, " (bytes into file)")
+        print("Section header table's file offset:    ", self.e_shoff, " (bytes into file)")
+        print("Flags:                                 ", hex(self.e_flags))
+        print("Header size:                           ", self.e_ehsize, " (bytes)")
+        print("Program header table size:             ", self.e_phentsize, " (bytes)")
+        print("Number of program header entries:      ", self.e_phnum)
+        print("Section header's size :                ", self.e_shentsize, " (bytes)")
+        print("Number of section header entries:      ", self.e_shnum)
+        print("Section header table index:            ", self.e_shstrndx)
+    
+    def Elf32_Program_Header_Print(self):
+        print("Program Header:")
+        print("Type:                                   ", self.p_type)
+        print("Flags:                                  ", hex(self.p_flags))
+        print("Offset from the beginning of the file:  ", hex(self.p_offset))
+        print("Virtual address:                        ", hex(self.p_vaddr))
+        print("Segment's physical address:             ", hex(self.p_paddr))
+        print("Number of bytes in the file image:      ", hex(self.p_filesz))
+        print("Number of bytes in the memory image:    ", hex(self.p_memsz))
+        print("Alignment:                              ", hex(self.p_align))
 
 def is_valid_axf_file(filepath):
     if not os.path.exists(filepath) or not filepath.endswith('.axf'):
@@ -66,13 +138,16 @@ def is_valid_axf_file(filepath):
 def main(args=None):
 
     output_file = ""
+    print_header_flag = False
+    print_program_headers_flag = False
 
     if args is None:
         args = sys.argv[1:]
     try:
         opts, args = getopt.gnu_getopt(args, 'hvo:',
-                                       ['help', 'version', 'output='])
+                                       ['help', 'version', 'header', 'program-headers', 'output='])
 
+        
         for o, a in opts:
             if o in ('-h', '--help'):
                 print(USAGE)
@@ -80,18 +155,29 @@ def main(args=None):
             elif o in ('-v', '--version'):
                 print(VERSION)
                 return 0
+            elif o in ('--header'):
+                print_header_flag = True
+            elif o in ('--program-headers'):
+                print_program_headers_flag = True
             elif o in ('-o', '--output'):
                 output_file = a
-    except getopt.GetoptError:
-        e = sys.exc_info()[1]     # current exception
-        sys.stderr.write(str(e)+"\n\n")
-        sys.stderr.write(USAGE+"\n")
-        return 1
 
-    try:
         axf_file = args[0]
         if not is_valid_axf_file(axf_file):
             raise ValueError("Input file is not a valid .axf file.")
+        
+        with open(axf_file, 'rb') as input_file:
+            input_data = input_file.read()
+        
+        elf_object = Elf32_Struct(input_data)
+
+        if print_header_flag:
+            elf_object.Elf32_Header_Print()
+            return 0
+
+        if print_program_headers_flag:
+            elf_object.Elf32_Program_Header_Print()
+            return 0
 
         if not output_file:
             output_file = os.path.splitext(axf_file)[0] + '.bin'
@@ -99,15 +185,7 @@ def main(args=None):
         if os.path.exists(output_file):
             os.remove(output_file)
         
-        with open(axf_file, 'rb') as input_file:
-            input_data = input_file.read()
-
-        start_index = AXF_HEAD_SIZE
-        end_index = input_data.find(BIN_END_MARK, AXF_HEAD_SIZE)
-        if end_index == -1:
-            raise ValueError("Convert data failed, can't find BIN_END_MARK.")
-        
-        output_data = input_data[start_index:end_index]
+        output_data = input_data[elf_object.e_ehsize:elf_object.p_paddr+elf_object.e_ehsize]
         with open(output_file, 'wb') as output:
             output.write(output_data)
     except Exception as e:

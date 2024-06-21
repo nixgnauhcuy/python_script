@@ -92,6 +92,8 @@ axf2bin.exe [options] FILE
 ```
     -h, --help              this help message.
     -v, --version           version info.
+        --header            output axf file header information.
+        --program-headers   output program headers information.
     -o, --output=FILENAME   output file name(if option is not specified, use original name by default).
 ```
 
@@ -105,6 +107,8 @@ axf2bin.exe [options] FILE
 
 ``` shell
 axf2bin.exe input.axf
+axf2bin.exe --header input.axf
+axf2bin.exe --program-headers input.axf
 axf2bin.exe -o output.bin input.axf
 ```
 
