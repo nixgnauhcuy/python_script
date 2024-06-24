@@ -40,7 +40,7 @@ import os
 import getopt
 import struct
 
-VERSION = '1.0.1'
+VERSION = '1.0.2'
 
 USAGE = '''Convert .axf file to .bin file.
 
@@ -58,47 +58,82 @@ Arguments:
     FILE                    .axf file.
 '''
 
-EI_NIDENT = 16
-class Elf32_Struct(object):
+class Elf_Struct(object):
+
+    E_IDENT_MAG0 = 0
+    E_IDENT_MAG1 = 1
+    E_IDENT_MAG2 = 2
+    E_IDENT_MAG3 = 3
+    E_IDENT_CLASS = 4
+    E_IDENT_DATA = 5
+    E_IDENT_VERSION = 6
+    E_IDENT_OSABI = 7
+    E_IDENT_ABIVERSION = 8
+    E_IDENT_PAD = 9
+    E_IDENT_NIDENT = 16
+
+    E_CLASS_32BIT = 0x01
+    E_CLASS_64BIT = 0x02
+
+    E_DATA_LSB = 0x01
+    E_DATA_MSB = 0x02
 
     # @see https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-43405/index.html
     def __init__(self, data) -> None:
+
+        self.e_ident = data[:self.E_IDENT_NIDENT]
+
         # ELF Header:
-        self.e_ident = data[:EI_NIDENT]
+        unpack_fmt = '<HHIIIIIHHHHHH' if self.e_ident[self.E_IDENT_CLASS] == self.E_CLASS_32BIT else '<HHIQQQIHHHHHH'
         (
-            self.e_type,
-            self.e_machine,
-            self.e_version,
-            self.e_entry,
-            self.e_phoff,
-            self.e_shoff,
-            self.e_flags,
-            self.e_ehsize,
-            self.e_phentsize,
-            self.e_phnum,
-            self.e_shentsize,
-            self.e_shnum,
-            self.e_shstrndx
-        ) = struct.unpack('<HHIIIIIHHHHHH', data[EI_NIDENT:EI_NIDENT+struct.calcsize('<HHIIIIIHHHHHH')])
+            self.e_type, 
+            self.e_machine, 
+            self.e_version, 
+            self.e_entry, 
+            self.e_phoff, 
+            self.e_shoff, 
+            self.e_flags, 
+            self.e_ehsize, 
+            self.e_phentsize, 
+            self.e_phnum, 
+            self.e_shentsize, 
+            self.e_shnum, 
+            self.e_shstrndx 
+        ) = struct.unpack(unpack_fmt, data[self.E_IDENT_NIDENT:self.E_IDENT_NIDENT+struct.calcsize(unpack_fmt)])
 
         # ELF Program Headers:
-        (
-            self.p_type,
-            self.p_flags,
-            self.p_offset,
-            self.p_vaddr,
-            self.p_paddr,
-            self.p_filesz,
-            self.p_memsz,
-            self.p_align
-        ) = struct.unpack('<IIIIIIII', data[self.e_phoff:self.e_phoff+struct.calcsize('<IIIIIIII')])
+        if self.e_ident[self.E_IDENT_CLASS] == self.E_CLASS_32BIT:
+            unpack_fmt = '<IIIIIIII'
+            (
+                self.p_type,
+                self.p_offset,
+                self.p_vaddr,
+                self.p_paddr,
+                self.p_filesz,
+                self.p_memsz,
+                self.p_flags,
+                self.p_align
+            ) = struct.unpack(unpack_fmt, data[self.e_phoff:self.e_phoff+struct.calcsize(unpack_fmt)])
+        else:
+            unpack_fmt = '<IIQQQQQQ'
+            (
+                self.p_type,
+                self.p_flags,
+                self.p_offset,
+                self.p_vaddr,
+                self.p_paddr,
+                self.p_filesz,
+                self.p_memsz,
+                self.p_align
+            ) = struct.unpack(unpack_fmt, data[self.e_phoff:self.e_phoff+struct.calcsize(unpack_fmt)])
     
-    def Elf32_Header_Print(self):
+    def Elf_Header_Print(self):
         print("ELF Header:")
         print("Magic:                                 ", " ".join(f"{byte:02x}" for byte in self.e_ident))
-        print("Class:                                 ", self.e_type)
+        print("Class:                                 ", "ELF32" if self.e_ident[self.E_IDENT_CLASS] == 1 else "ELF64")
+        print("Data Encoding:                         ", "Specifies 2's complement values, " + ("ELFDATA2LSB" if self.e_ident[self.E_IDENT_DATA] == 1 else "ELFDATA2MSB"))
         print("Machine:                               ", self.e_machine)
-        print("Version:                               ", self.e_version)
+        print("Version:                               ", hex(self.e_version))
         print("Entry point address:                   ", hex(self.e_entry))
         print("Program header table's file offset:    ", self.e_phoff, " (bytes into file)")
         print("Section header table's file offset:    ", self.e_shoff, " (bytes into file)")
@@ -110,7 +145,7 @@ class Elf32_Struct(object):
         print("Number of section header entries:      ", self.e_shnum)
         print("Section header table index:            ", self.e_shstrndx)
     
-    def Elf32_Program_Header_Print(self):
+    def Elf_Program_Header_Print(self):
         print("Program Header:")
         print("Type:                                   ", self.p_type)
         print("Flags:                                  ", hex(self.p_flags))
@@ -138,7 +173,6 @@ def main(args=None):
         opts, args = getopt.gnu_getopt(args, 'hvo:',
                                        ['help', 'version', 'header', 'program-headers', 'output='])
 
-        
         for o, a in opts:
             if o in ('-h', '--help'):
                 print(USAGE)
@@ -160,14 +194,14 @@ def main(args=None):
         with open(axf_file, 'rb') as input_file:
             input_data = input_file.read()
         
-        elf_object = Elf32_Struct(input_data)
+        elf_object = Elf_Struct(input_data)
 
         if print_header_flag:
-            elf_object.Elf32_Header_Print()
+            elf_object.Elf_Header_Print()
             return 0
 
         if print_program_headers_flag:
-            elf_object.Elf32_Program_Header_Print()
+            elf_object.Elf_Program_Header_Print()
             return 0
 
         if not output_file:
@@ -176,7 +210,7 @@ def main(args=None):
         if os.path.exists(output_file):
             os.remove(output_file)
         
-        output_data = input_data[elf_object.e_ehsize:elf_object.p_paddr+elf_object.e_ehsize]
+        output_data = input_data[elf_object.e_ehsize:elf_object.p_filesz+elf_object.e_ehsize]
         with open(output_file, 'wb') as output:
             output.write(output_data)
     except Exception as e:
